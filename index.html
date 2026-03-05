@@ -1,60 +1,99 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>SPYDER TERMINAL</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>SPYDER-LINK TERMINAL</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background: black; color: #0f0; font-family: monospace; padding: 20px; text-transform: uppercase; }
-        #terminal { border: 1px solid #0f0; padding: 15px; height: 80vh; overflow-y: auto; background: rgba(0, 20, 0, 0.2); }
-        .line { margin-bottom: 5px; border-left: 3px solid #0f0; padding-left: 10px; }
-        .critical { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
-        h2 { border-bottom: 1px solid #0f0; padding-bottom: 10px; }
+        /* Fallout CRT Эффекты */
+        body {
+            background-color: #001100;
+            color: #1aff1a;
+            font-family: 'Courier New', Courier, monospace;
+            text-shadow: 0 0 5px #1aff1a;
+            overflow: hidden;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Эффект мерцания и полос */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Сканирующая полоса */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 3;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(26, 255, 26, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 6s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            80% { bottom: 100%; }
+            100% { bottom: -10%; }
+        }
+
+        #terminal {
+            height: 90vh;
+            border: 2px solid #1aff1a;
+            padding: 20px;
+            position: relative;
+            background: rgba(0, 20, 0, 0.3);
+            box-shadow: inset 0 0 20px #000;
+        }
+
+        .header {
+            border-bottom: 2px solid #1aff1a;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .log-entry { margin-bottom: 5px; }
     </style>
 </head>
-<body>
-    <h2>SYSTEM MONITOR [SPYDER_v1.0]</h2>
-    <div id="terminal"></div>
+<body class="crt">
+    <div class="scanline"></div>
+    <div id="terminal">
+        <div class="header">ROBCO INDUSTRIES (TM) TERMLINK 1.0 - SPYDER MONITOR</div>
+        <div id="output">LOADING DATA...</div>
+    </div>
 
     <script>
-        // Твоя личная ссылка на базу данных
         const firebaseConfig = {
             databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
         };
-        
-        // Инициализация связи
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database().ref('display_text');
+        const database = firebase.database();
 
-        const term = document.getElementById('terminal');
-
-        // Функция для добавления строк в терминал
-        function addLog(text) {
-            const line = document.createElement('div');
-            line.className = 'line';
+        // Слушаем обновления от "Паука"
+        database.ref('display_text').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const output = document.getElementById('output');
+            const time = new Date().toLocaleTimeString();
             
-            // Если в тексте есть упоминание низкого вольтажа (ниже 13.0V), красим в красный
-            if (text.includes("LOW") || text.includes("CRITICAL")) {
-                line.classList.add('critical');
-            }
+            // Добавляем новую строку сверху
+            output.innerHTML = `<div class="log-entry">[${time}] > ${data}</div>` + output.innerHTML;
             
-            line.textContent = `> ${new Date().toLocaleTimeString()} | ${text}`;
-            term.appendChild(line);
-            
-            // Автопрокрутка вниз
-            term.scrollTop = term.scrollHeight;
-        }
-
-        // Слушаем Паука: как только данные в Firebase изменятся, они тут же появятся здесь
-        db.on('value', (snapshot) => {
-            const val = snapshot.val();
-            if (val) {
-                addLog(val);
+            // Ограничиваем количество строк, чтобы не тормозило
+            if (output.childNodes.length > 20) {
+                output.removeChild(output.lastChild);
             }
         });
-
-        addLog("TERMINAL ONLINE. AWAITING DATA FROM SPYDER...");
     </script>
 </body>
 </html>
