@@ -1,95 +1,141 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SPYDER-LINK TERMINAL</title>
+    <title>SPYDER-LINK FALLOUT MIRROR</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* Fallout CRT Эффекты */
-        body {
-            background-color: #001100;
-            color: #1aff1a;
-            font-family: 'Courier New', Courier, monospace;
-            text-shadow: 0 0 5px #1aff1a;
-            overflow: hidden;
-            margin: 0;
-            padding: 20px;
+        /* ПОЛНЫЙ СТИЛЬ FALLOUT CRT */
+        body { 
+            background-color: #001100; 
+            color: #1aff1a; 
+            font-family: 'Courier New', Courier, monospace; 
+            text-shadow: 0 0 5px #1aff1a; 
+            margin: 0; 
+            padding: 20px; 
+            overflow: hidden; 
         }
 
-        /* Эффект мерцания и полос */
+        /* Эффект старого монитора */
         .crt::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                         linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
+            z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none;
         }
 
         /* Сканирующая полоса */
         .scanline {
-            width: 100%;
-            height: 100px;
-            z-index: 3;
-            background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(26, 255, 26, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
-            opacity: 0.1;
-            position: absolute;
-            bottom: 100%;
-            animation: scanline 6s linear infinite;
+            width: 100%; height: 100px; z-index: 11; opacity: 0.1; position: absolute;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(26, 255, 26, 0.2) 50%, rgba(0, 0, 0, 0) 100%);
+            bottom: 100%; animation: scanline 8s linear infinite; pointer-events: none;
         }
-
-        @keyframes scanline {
-            0% { bottom: 100%; }
-            80% { bottom: 100%; }
-            100% { bottom: -10%; }
-        }
+        @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -20%; } }
 
         #terminal {
-            height: 90vh;
-            border: 2px solid #1aff1a;
-            padding: 20px;
-            position: relative;
-            background: rgba(0, 20, 0, 0.3);
-            box-shadow: inset 0 0 20px #000;
+            height: 90vh; border: 2px solid #1aff1a; padding: 20px;
+            background: rgba(0, 20, 0, 0.3); box-shadow: inset 0 0 20px #000;
+            display: flex; flex-direction: column; position: relative;
         }
 
-        .header {
-            border-bottom: 2px solid #1aff1a;
-            margin-bottom: 15px;
-            padding-bottom: 5px;
-            font-weight: bold;
+        .header { border-bottom: 2px solid #1aff1a; padding-bottom: 10px; margin-bottom: 20px; font-weight: bold; }
+
+        /* РАЗДЕЛ DATA (ЗЕРКАЛО) */
+        .data-grid { 
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; 
+        }
+        .data-box { 
+            border: 1px solid #1aff1a; padding: 15px; text-align: center; background: rgba(26, 255, 26, 0.05); 
+        }
+        .stat-label { font-size: 0.7em; opacity: 0.7; text-transform: uppercase; }
+        .stat-value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
+
+        /* Нижняя инфо-панель */
+        .footer-stats { 
+            border-top: 2px solid #1aff1a; padding-top: 15px; 
+            display: flex; justify-content: space-between; font-size: 0.9em; 
         }
 
-        .log-entry { margin-bottom: 5px; }
+        .alarm-flash { animation: alarm 1s infinite; color: #ff3333; text-shadow: 0 0 5px #ff3333; }
+        @keyframes alarm { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+
+        #log { flex-grow: 1; overflow-y: auto; margin-top: 10px; font-size: 0.8em; opacity: 0.6; }
     </style>
 </head>
 <body class="crt">
     <div class="scanline"></div>
     <div id="terminal">
-        <div class="header">ROBCO INDUSTRIES (TM) TERMLINK 1.0 - SPYDER MONITOR</div>
-        <div id="output">LOADING DATA...</div>
+        <div class="header">ROBCO INDUSTRIES (TM) TERMLINK 1.0 - SPYDER MIRROR SYSTEM</div>
+        
+        <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <div id="date-time">--.--.---- --:--:--</div>
+            <div id="wifi-rssi">WI-FI: SEARCHING...</div>
+        </div>
+
+        <div class="data-grid">
+            <div class="data-box">
+                <div class="stat-label">SUPPLY VOLTAGE</div>
+                <div id="vcc" class="stat-value">--.--V</div>
+            </div>
+            <div class="data-box">
+                <div class="stat-label">CPU TEMP</div>
+                <div id="temp" class="stat-value">--.-°C</div>
+            </div>
+        </div>
+
+        <div class="footer-stats">
+            <div>DROPS: <span id="drops">0</span></div>
+            <div>RAM: <span id="ram">0</span> KB</div>
+            <div id="sys-status">SYSTEM: OK</div>
+        </div>
+
+        <div id="log"></div>
     </div>
 
-   <script>
-    const firebaseConfig = {
-        databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    <script>
+        const firebaseConfig = { databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-    const output = document.getElementById('output');
+        function updateClock() {
+            document.getElementById('date-time').innerText = new Date().toLocaleString();
+        }
+        setInterval(updateClock, 1000);
 
-    database.ref('display_text').on('value', (snapshot) => {
-        const data = snapshot.val();
-        const time = new Date().toLocaleTimeString();
-        output.innerHTML = `<div class="log-entry">[${time}] > ${data}</div>` + output.innerHTML;
-    }, (error) => {
-        output.innerHTML = `<div style="color:red">ERROR: ${error.message}</div>` + output.innerHTML;
-    });
-</script>
+        database.ref('display_text').on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (!val) return;
+
+            // Если пришла строка-зеркало: V:3.31|T:42.5|R:-65|D:2|M:180
+            if (val.includes("|")) {
+                const parts = val.split("|");
+                const data = {};
+                parts.forEach(p => {
+                    const [key, value] = p.split(":");
+                    data[key] = value;
+                });
+
+                document.getElementById('vcc').innerText = data['V'] + "V";
+                document.getElementById('temp').innerText = data['T'] + "°C";
+                document.getElementById('wifi-rssi').innerText = "SIGNAL: " + data['R'] + " dBm";
+                document.getElementById('drops').innerText = data['D'];
+                document.getElementById('ram').innerText = data['M'];
+
+                const status = document.getElementById('sys-status');
+                if (parseInt(data['D']) > 0) {
+                    status.innerText = "ALARM ACTIVE";
+                    status.className = "alarm-flash";
+                } else {
+                    status.innerText = "SYSTEM: OK";
+                    status.className = "";
+                }
+            }
+
+            // Добавляем запись в лог снизу
+            const log = document.getElementById('log');
+            log.innerHTML = `<div>[${new Date().toLocaleTimeString()}] > ${val}</div>` + log.innerHTML;
+            if (log.childNodes.length > 5) log.removeChild(log.lastChild);
+        });
+    </script>
 </body>
 </html>
-
