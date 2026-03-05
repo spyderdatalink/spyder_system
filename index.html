@@ -66,15 +66,18 @@
     </div>
 
 <script>
-    const firebaseConfig = { databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/" };
+    const firebaseConfig = {
+        databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
+    };
     firebase.initializeApp(firebaseConfig);
 
-    // 1. ЛОГИКА "ЗАПОМНИТЬ МЕНЯ"
+    // ИЗМЕНЕНО: Используем localStorage вместо sessionStorage
     let secretKey = localStorage.getItem('spyder_permanent_token');
 
     if (!secretKey) {
-        secretKey = prompt("ENTER SYSTEM ACCESS KEY:");
+        secretKey = prompt("ENTER SYSTEM ACCESS KEY (ed7CC...):");
         if (secretKey) {
+            // Сохраняем в постоянную память браузера
             localStorage.setItem('spyder_permanent_token', secretKey);
         }
     }
@@ -83,57 +86,30 @@
         document.body.innerHTML = "<h1 style='color:#00FF00; background:black; text-align:center; padding:50px; font-family:monospace;'>[ ACCESS DENIED ]<br>NO KEY - NO DATA</h1>";
     } else {
         function loadData() {
-            const secureUrl = `https://spyder-monitor-default-rtdb.firebaseio.com/display_text.json?auth=${secretKey}`;
+            // Добавляем случайное число к URL, чтобы браузер не брал старые данные из кэша при сбоях сети
+            const cacheBuster = Math.random();
+            const secureUrl = `https://spyder-monitor-default-rtdb.firebaseio.com/display_text.json?auth=${secretKey}&cb=${cacheBuster}`;
             
             fetch(secureUrl)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.error) throw new Error(data.error);
-                    parseData(data);
-                    document.getElementById('date-time').innerText = new Date().toLocaleString();
+                    if (typeof parseData === "function") parseData(data);
                 })
                 .catch(err => {
-                    localStorage.removeItem('spyder_permanent_token');
-                    alert("WRONG KEY! Access Revoked.");
-                    location.reload();
+                    console.error("Connection or Auth Error");
+                    // Если ошибка именно в ключе (auth), тогда стираем его
+                    if(err.message.includes("auth")) {
+                        localStorage.removeItem('spyder_permanent_token');
+                        location.reload();
+                    }
                 });
         }
 
-        // 2. ПАРСЕР ДАННЫХ (Разбираем строку от ESP32)
-        function parseData(rawStr) {
-            if (!rawStr || typeof rawStr !== 'string') return;
-            
-            // Пример строки: V:3.35|T:42.5|R:-65|D:2|M:180
-            const parts = rawStr.split('|');
-            const data = {};
-            parts.forEach(p => {
-                const kv = p.split(':');
-                if (kv.length === 2) data[kv[0]] = kv[1];
-            });
-
-            if (data.V) document.getElementById('vcc').innerText = data.V + "V";
-            if (data.T) document.getElementById('temp').innerText = data.T + "°C";
-            if (data.R) document.getElementById('wifi-rssi').innerText = "WI-FI: " + data.R + " dBm";
-            if (data.D) document.getElementById('drops').innerText = data.D;
-            if (data.M) document.getElementById('ram').innerText = data.M;
-
-            const sysStatus = document.getElementById('sys-status');
-            if (rawStr.includes("ALARM")) {
-                sysStatus.innerText = "SYSTEM: ALARM!";
-                sysStatus.classList.add('alarm-flash');
-            } else {
-                sysStatus.innerText = "SYSTEM: OK";
-                sysStatus.classList.remove('alarm-flash');
-            }
-            
-            // Лог последних данных
-            const log = document.getElementById('log');
-            log.innerHTML = `> RECEIVED: ${rawStr}<br>` + log.innerHTML.split('<br>').slice(0, 5).join('<br>');
-        }
-
-        setInterval(loadData, 3000);
+        setInterval(loadData, 3000); 
         loadData();
     }
 </script>
 </body>
 </html>
+
