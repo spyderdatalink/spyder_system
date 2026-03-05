@@ -73,27 +73,23 @@
         <div id="output">LOADING DATA...</div>
     </div>
 
-    <script>
-        const firebaseConfig = {
-            databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+   <script>
+    const firebaseConfig = {
+        databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-        // Слушаем обновления от "Паука"
-        database.ref('display_text').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const output = document.getElementById('output');
-            const time = new Date().toLocaleTimeString();
-            
-            // Добавляем новую строку сверху
-            output.innerHTML = `<div class="log-entry">[${time}] > ${data}</div>` + output.innerHTML;
-            
-            // Ограничиваем количество строк, чтобы не тормозило
-            if (output.childNodes.length > 20) {
-                output.removeChild(output.lastChild);
-            }
-        });
-    </script>
+    const output = document.getElementById('output');
+
+    database.ref('display_text').on('value', (snapshot) => {
+        const data = snapshot.val();
+        const time = new Date().toLocaleTimeString();
+        output.innerHTML = `<div class="log-entry">[${time}] > ${data}</div>` + output.innerHTML;
+    }, (error) => {
+        output.innerHTML = `<div style="color:red">ERROR: ${error.message}</div>` + output.innerHTML;
+    });
+</script>
 </body>
 </html>
+
