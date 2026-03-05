@@ -92,50 +92,51 @@
         <div id="log"></div>
     </div>
 
-    <script>
-        const firebaseConfig = { databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-        function updateClock() {
-            document.getElementById('date-time').innerText = new Date().toLocaleString();
+<script>
+    const firebaseConfig = {
+        databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    // Спрашиваем ключ при каждом входе (он не сохраняется на диске)
+    let secretKey = sessionStorage.getItem('spyder_session_token');
+
+    if (!secretKey) {
+        secretKey = prompt("ENTER SYSTEM ACCESS KEY (ed7CC...):");
+        if (secretKey) {
+            sessionStorage.setItem('spyder_session_token', secretKey);
         }
-        setInterval(updateClock, 1000);
+    }
 
-        database.ref('display_text').on('value', (snapshot) => {
-            const val = snapshot.val();
-            if (!val) return;
-
-            // Если пришла строка-зеркало: V:3.31|T:42.5|R:-65|D:2|M:180
-            if (val.includes("|")) {
-                const parts = val.split("|");
-                const data = {};
-                parts.forEach(p => {
-                    const [key, value] = p.split(":");
-                    data[key] = value;
+    if (!secretKey) {
+        document.body.innerHTML = "<h1 style='color:#00FF00; background:black; text-align:center; padding:50px; font-family:monospace;'>[ ACCESS DENIED ]<br>NO KEY - NO DATA</h1>";
+    } else {
+        // Функция загрузки данных напрямую через REST API с ключом
+        function loadData() {
+            const secureUrl = `https://spyder-monitor-default-rtdb.firebaseio.com/display_text.json?auth=${secretKey}`;
+            
+            fetch(secureUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.error) throw new Error(data.error);
+                    // Вызываем твою старую функцию отрисовки (например, parseData)
+                    if (typeof parseData === "function") parseData(data);
+                })
+                .catch(err => {
+                    console.error("Auth Error");
+                    sessionStorage.removeItem('spyder_session_token'); // Стираем плохой ключ
+                    alert("WRONG KEY! Access Revoked.");
+                    location.reload();
                 });
+        }
 
-                document.getElementById('vcc').innerText = data['V'] + "V";
-                document.getElementById('temp').innerText = data['T'] + "°C";
-                document.getElementById('wifi-rssi').innerText = "SIGNAL: " + data['R'] + " dBm";
-                document.getElementById('drops').innerText = data['D'];
-                document.getElementById('ram').innerText = data['M'];
-
-                const status = document.getElementById('sys-status');
-                if (parseInt(data['D']) > 0) {
-                    status.innerText = "ALARM ACTIVE";
-                    status.className = "alarm-flash";
-                } else {
-                    status.innerText = "SYSTEM: OK";
-                    status.className = "";
-                }
-            }
-
-            // Добавляем запись в лог снизу
-            const log = document.getElementById('log');
-            log.innerHTML = `<div>[${new Date().toLocaleTimeString()}] > ${val}</div>` + log.innerHTML;
-            if (log.childNodes.length > 5) log.removeChild(log.lastChild);
-        });
-    </script>
+        setInterval(loadData, 3000); // Обновление каждые 3 сек
+        loadData();
+    }
+</script>
 </body>
 </html>
+
