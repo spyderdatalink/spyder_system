@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminator Terminal (SPYDER)</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+      /* Основные стили страницы */
+      body {
+        background-color: #000000;
+        color: #1aff1a;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px; /* Чуть меньше для мобилок */
+        margin: 0;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        box-sizing: border-box;
+
+        /* Эффект мерцания старого экрана */
+        animation: flicker 0.15s infinite;
+
+        /* Скан-линии монитора */
+        background-image:
+          linear-gradient(rgba(18, 16, 16, 0.1) 50%, transparent 50%),
+          linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.03),
+            rgba(0, 255, 0, 0.01),
+            rgba(0, 0, 255, 0.03)
+          );
+        background-size:
+          100% 3px,
+          100% 100%;
+      }
+
+      /* Основной контейнер терминала */
+      #terminal-container {
+        width: 100%;
+        max-width: 600px;
+        height: 85%;
+        border: 1px solid #1aff1a;
+        padding: 10px;
+        box-shadow: 0 0 10px rgba(26, 255, 26, 0.3);
+        overflow-y: auto;
+        position: relative;
+        background: rgba(0, 20, 0, 0.1);
+      }
+
+      h1 {
+        font-size: 16px;
+        text-align: center;
+        text-transform: uppercase;
+        text-shadow: 0 0 5px #1aff1a;
+        margin: 10px 0;
+      }
+
+      .log-entry {
+        margin-bottom: 5px;
+        line-height: 1.2;
+        word-break: break-all;
+      }
+
+      .prefix {
+        font-weight: bold;
+        color: #99ff99;
+      }
+
+      .warning {
+        color: #ff3333;
+        text-shadow: 0 0 5px #ff3333;
+      }
+
+      /* Анимация мерцания */
+      @keyframes flicker {
+        0% {
+          opacity: 0.98;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.99;
+        }
+      }
+
+      /* Кастомный скроллбар под терминал */
+      #terminal-container::-webkit-scrollbar {
+        width: 6px;
+      }
+      #terminal-container::-webkit-scrollbar-thumb {
+        background-color: #1aff1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SYSTEM STATUS: SPYDER v1.0</h1>
+
+    <div id="terminal-container" id="log">
+      <div class="log-entry">
+        <span class="prefix">SYS:</span> BOOT SEQUENCE INITIALIZED...
+      </div>
+      <div class="log-entry">
+        <span class="prefix">SYS:</span> CHECKING POWER SOURCE...
+        <span id="voltage-status">OK</span>
+      </div>
+      <div class="log-entry">
+        <span class="prefix">USR:</span> TERMINAL READY_
+      </div>
+    </div>
+
+    <script>
+      // Инициализация Telegram Web App
+      const webapp = window.Telegram.WebApp;
+      webapp.setHeaderColor('#000000');
+      webapp.setBackgroundColor('#000000');
+      webapp.expand();
+
+      // Функция добавления логов (Исправлена!)
+      function addLog(text, isWarning = false) {
+        const container = document.getElementById('terminal-container');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        if (isWarning) {
+          entry.classList.add('warning');
+        }
+
+        // Используем обратные кавычки (шаблонные строки) для удобства
+        entry.innerHTML = `<span class="prefix">C:\\></span> ${text}`;
+
+        container.appendChild(entry);
+
+        // Автоматическая прокрутка вниз
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+
+      // ТЕСТОВЫЕ КОМАНДЫ (имитация работы)
+      setTimeout(() => addLog('SCANNING BATTERY CELLS...'), 1500);
+      setTimeout(() => addLog('VOLTAGE DETECTED: 13.2V'), 3000);
+
+      // Пример критического сообщения (ниже 13.0В)
+      setTimeout(() => {
+        addLog('WARNING: VOLTAGE DROPPED TO 12.9V!', true);
+        webapp.HapticFeedback.notificationOccurred('error'); // Вибрация в Telegram
+      }, 5000);
+    </script>
+  </body>
+</html>
