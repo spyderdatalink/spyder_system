@@ -5,7 +5,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* ТВОЙ СТИЛЬ FALLOUT CRT */
+        /* СТИЛЬ FALLOUT CRT */
         body { 
             background-color: #001100; color: #1aff1a; 
             font-family: 'Courier New', Courier, monospace; 
@@ -23,8 +23,9 @@
             bottom: 100%; animation: scanline 8s linear infinite; pointer-events: none;
         }
         @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -20%; } }
+        
         #terminal {
-            height: 90vh; border: 2px solid #1aff1a; padding: 20px;
+            height: 92vh; border: 2px solid #1aff1a; padding: 20px;
             background: rgba(0, 20, 0, 0.3); box-shadow: inset 0 0 20px #000;
             display: flex; flex-direction: column; position: relative;
         }
@@ -33,20 +34,33 @@
         .data-box { border: 1px solid #1aff1a; padding: 15px; text-align: center; background: rgba(26, 255, 26, 0.05); }
         .stat-label { font-size: 0.7em; opacity: 0.7; text-transform: uppercase; }
         .stat-value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
-        .footer-stats { border-top: 2px solid #1aff1a; padding-top: 15px; display: flex; justify-content: space-between; font-size: 0.9em; }
-        .alarm-flash { animation: alarm 1s infinite; color: #ff3333; text-shadow: 0 0 5px #ff3333; }
+        
+        /* КНОПКИ ТЕРМИНАЛА */
+        .control-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn { 
+            background: none; border: 1px solid #1aff1a; color: #1aff1a; 
+            padding: 10px; font-family: 'Courier New', monospace; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s;
+        }
+        .btn:hover { background: rgba(26, 255, 26, 0.2); box-shadow: 0 0 10px #1aff1a; }
+        .btn-red { border-color: #ff3333; color: #ff3333; }
+        .btn-red:hover { background: rgba(255, 51, 51, 0.2); box-shadow: 0 0 10px #ff3333; }
+
+        .footer-stats { border-top: 2px solid #1aff1a; padding-top: 15px; display: flex; justify-content: space-between; font-size: 0.9em; margin-top: auto; }
+        .alarm-flash { animation: alarm 1s infinite; color: #ff3333 !important; text-shadow: 0 0 5px #ff3333 !important; }
         @keyframes alarm { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
-        #log { flex-grow: 1; overflow-y: auto; margin-top: 10px; font-size: 0.8em; opacity: 0.6; }
     </style>
 </head>
 <body class="crt">
     <div class="scanline"></div>
     <div id="terminal">
-        <div class="header">ROBCO INDUSTRIES (TM) TERMLINK 1.0 - SPYDER MIRROR SYSTEM</div>
+        <div class="header">ROBCO INDUSTRIES (TM) TERMLINK 1.1 - SPYDER REMOTE CONTROL</div>
+        
         <div class="top-bar" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <div id="date-time">--.--.---- --:--:--</div>
-            <div id="wifi-rssi">WI-FI: SEARCHING...</div>
+            <div id="date-time">SYSTEM STATUS: LINKED</div>
+            <div id="wifi-rssi">WI-FI: -- dBm</div>
         </div>
+
         <div class="data-grid">
             <div class="data-box">
                 <div class="stat-label">SUPPLY VOLTAGE</div>
@@ -57,12 +71,18 @@
                 <div id="temp" class="stat-value">--.-°C</div>
             </div>
         </div>
+
+        <div class="header" style="border-top: 2px solid #1aff1a; margin-top: 10px; padding-top: 10px;">COMMAND OVERRIDE</div>
+        <div class="control-panel">
+            <button class="btn" onclick="sendCommand('RESET_ALARM')">[ RESET ALARM ]</button>
+            <button class="btn btn-red" onclick="sendCommand('REBOOT')">[ REBOOT ESP32 ]</button>
+        </div>
+
         <div class="footer-stats">
             <div>DROPS: <span id="drops">0</span></div>
             <div>RAM: <span id="ram">0</span> KB</div>
             <div id="sys-status">SYSTEM: OK</div>
         </div>
-        <div id="log"></div>
     </div>
 
 <script>
@@ -71,22 +91,52 @@
     };
     firebase.initializeApp(firebaseConfig);
 
-    // ИЗМЕНЕНО: Используем localStorage вместо sessionStorage
     let secretKey = localStorage.getItem('spyder_permanent_token');
 
     if (!secretKey) {
-        secretKey = prompt("ENTER SYSTEM ACCESS KEY (ed7CC...):");
-        if (secretKey) {
-            // Сохраняем в постоянную память браузера
-            localStorage.setItem('spyder_permanent_token', secretKey);
-        }
+        secretKey = prompt("ENTER ACCESS KEY:");
+        if (secretKey) localStorage.setItem('spyder_permanent_token', secretKey);
     }
 
     if (!secretKey) {
-        document.body.innerHTML = "<h1 style='color:#00FF00; background:black; text-align:center; padding:50px; font-family:monospace;'>[ ACCESS DENIED ]<br>NO KEY - NO DATA</h1>";
+        document.body.innerHTML = "<h1>[ ACCESS DENIED ]</h1>";
     } else {
+        // --- ПАРСЕР ДАННЫХ ---
+        function parseData(rawStr) {
+            if (!rawStr || typeof rawStr !== 'string') return;
+            
+            const parts = rawStr.split('|');
+            const data = {};
+            parts.forEach(p => {
+                const kv = p.split(':');
+                if (kv.length === 2) data[kv[0].trim()] = kv[1].trim();
+            });
+
+            if (data.V) document.getElementById('vcc').innerText = data.V + "V";
+            if (data.T) document.getElementById('temp').innerText = data.T + "°C";
+            if (data.R) document.getElementById('wifi-rssi').innerText = "WI-FI: " + data.R + " dBm";
+            if (data.D) document.getElementById('drops').innerText = data.D;
+            if (data.M) document.getElementById('ram').innerText = data.M;
+
+            const sysStatus = document.getElementById('sys-status');
+            if (rawStr.includes("ALARM") || parseInt(data.D) > 0) {
+                sysStatus.innerText = "SYSTEM: ALARM!";
+                sysStatus.classList.add('alarm-flash');
+            } else {
+                sysStatus.innerText = "SYSTEM: OK";
+                sysStatus.classList.remove('alarm-flash');
+            }
+        }
+
+        // --- ФУНКЦИЯ ОТПРАВКИ КОМАНД ---
+        function sendCommand(cmd) {
+            const url = `https://spyder-monitor-default-rtdb.firebaseio.com/commands.json?auth=${secretKey}`;
+            fetch(url, { method: 'PUT', body: JSON.stringify(cmd) })
+                .then(() => alert("EXECUTING: " + cmd))
+                .catch(err => alert("CMD ERROR: " + err));
+        }
+
         function loadData() {
-            // Добавляем случайное число к URL, чтобы браузер не брал старые данные из кэша при сбоях сети
             const cacheBuster = Math.random();
             const secureUrl = `https://spyder-monitor-default-rtdb.firebaseio.com/display_text.json?auth=${secretKey}&cb=${cacheBuster}`;
             
@@ -94,11 +144,9 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.error) throw new Error(data.error);
-                    if (typeof parseData === "function") parseData(data);
+                    parseData(data);
                 })
                 .catch(err => {
-                    console.error("Connection or Auth Error");
-                    // Если ошибка именно в ключе (auth), тогда стираем его
                     if(err.message.includes("auth")) {
                         localStorage.removeItem('spyder_permanent_token');
                         location.reload();
@@ -112,4 +160,3 @@
 </script>
 </body>
 </html>
-
