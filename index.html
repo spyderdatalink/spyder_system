@@ -86,8 +86,11 @@
     </div>
 
 <script>
+    // Название твоей базы для удобства
+    const DB_URL = "https://spyder-monitor-default-rtdb.firebaseio.com";
+
     const firebaseConfig = {
-        databaseURL: "https://spyder-monitor-default-rtdb.firebaseio.com/"
+        databaseURL: DB_URL + "/"
     };
     firebase.initializeApp(firebaseConfig);
 
@@ -99,7 +102,7 @@
     }
 
     if (!secretKey) {
-        document.body.innerHTML = "<h1>[ ACCESS DENIED ]</h1>";
+        document.body.innerHTML = "<h1 style='color:#1aff1a; text-align:center; margin-top:20%;'>[ ACCESS DENIED ]</h1>";
     } else {
         // --- ПАРСЕР ДАННЫХ ---
         function parseData(rawStr) {
@@ -116,7 +119,7 @@
             if (data.T) document.getElementById('temp').innerText = data.T + "°C";
             if (data.R) document.getElementById('wifi-rssi').innerText = "WI-FI: " + data.R + " dBm";
             if (data.D) document.getElementById('drops').innerText = data.D;
-            if (data.M) document.getElementById('ram').innerText = data.M;
+            if (data.M) document.getElementById('ram').innerText = data.M + " KB";
 
             const sysStatus = document.getElementById('sys-status');
             if (rawStr.includes("ALARM") || parseInt(data.D) > 0) {
@@ -128,17 +131,29 @@
             }
         }
 
-        // --- ФУНКЦИЯ ОТПРАВКИ КОМАНД ---
+        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ КОМАНД ---
         function sendCommand(cmd) {
-            const url = `https://spyder-monitor-default-rtdb.firebaseio.com/commands.json?auth=${secretKey}`;
-            fetch(url, { method: 'PUT', body: JSON.stringify(cmd) })
-                .then(() => alert("EXECUTING: " + cmd))
-                .catch(err => alert("CMD ERROR: " + err));
+            // Исправленный URL: убираем лишние точки, ведем строго на commands.json
+            const url = `${DB_URL}/commands.json?auth=${secretKey}`;
+            
+            fetch(url, { 
+                method: 'PUT', 
+                body: JSON.stringify(cmd) // Отправит "REBOOT" или "RESET_ALARM"
+            })
+            .then(res => {
+                if (res.ok) {
+                    console.log("Terminal: Command " + cmd + " sent successfully.");
+                } else {
+                    alert("ACCESS DENIED: Check your Secret Key");
+                }
+            })
+            .catch(err => alert("TERMINAL ERROR: " + err));
         }
 
+        // --- ЗАГРУЗКА ДАННЫХ ---
         function loadData() {
             const cacheBuster = Math.random();
-            const secureUrl = `https://spyder-monitor-default-rtdb.firebaseio.com/display_text.json?auth=${secretKey}&cb=${cacheBuster}`;
+            const secureUrl = `${DB_URL}/display_text.json?auth=${secretKey}&cb=${cacheBuster}`;
             
             fetch(secureUrl)
                 .then(res => res.json())
@@ -147,7 +162,7 @@
                     parseData(data);
                 })
                 .catch(err => {
-                    if(err.message.includes("auth")) {
+                    if (err.message && err.message.includes("auth")) {
                         localStorage.removeItem('spyder_permanent_token');
                         location.reload();
                     }
@@ -160,3 +175,4 @@
 </script>
 </body>
 </html>
+
